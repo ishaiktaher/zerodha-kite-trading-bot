@@ -26,3 +26,19 @@
    npm install
    npm start
    ```
+## Screenshots
+
+   1. **Dashboard**
+   ![ALT TEXT](./client/public/images/dashboard.png)
+
+   2. **Funds**
+   ![ALT TEXT](./client/public/images/funds-overview.png)
+
+   3. **Login**
+   ![ALT TEXT](./client/public/images/login.png)
+
+   4. **Orders**
+   ![ALT TEXT](./client/public/images/orders.png)
+
+   4. **Portfolio**
+   ![ALT TEXT](./client/public/images/portfolio.png)
