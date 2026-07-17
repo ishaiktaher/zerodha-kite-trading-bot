@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { FilterWorkspace } from "@/components/filter-workspace";
+import { ChartPanel } from "@/components/chart-panel";
+import { OrderModal } from "@/components/order-modal";
 
 const conditionLabels = {
   firstPreviousCandleRed: "Two days ago candle is red",
@@ -28,6 +30,7 @@ export default function TradingDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [orderDraft, setOrderDraft] = useState(null);
 
   useEffect(() => {
     setLoginError(new URLSearchParams(window.location.search).get("error") || "");
@@ -35,7 +38,7 @@ export default function TradingDashboard() {
   }, []);
 
   useEffect(() => {
-    if (!session?.authenticated || activeTab === "trade" || activeTab === "filters") return;
+    if (!session?.authenticated || ["trade", "filters", "chart"].includes(activeTab)) return;
     const path = activeTab === "funds" ? "/api/account/margins?segment=equity" : `/api/account/${activeTab}`;
     setLoading(true);
     api(path)
@@ -65,6 +68,8 @@ export default function TradingDashboard() {
       setLoading(false);
     }
   }
+
+  function openChart(nextSymbol) { setSymbol(nextSymbol); setActiveTab("chart"); }
 
   if (session === null) return <main className="center-page"><p>Loading terminal…</p></main>;
 
@@ -98,7 +103,7 @@ export default function TradingDashboard() {
       </section>
 
       <nav className="tabs">
-        {["trade", "filters", "orders", "holdings", "positions", "funds"].map((tab) => (
+        {["trade", "filters", "chart", "orders", "holdings", "positions", "funds"].map((tab) => (
           <button key={tab} className={activeTab === tab ? "active" : ""} onClick={() => { setActiveTab(tab); setError(""); }}>
             {tab[0].toUpperCase() + tab.slice(1)}
           </button>
@@ -107,7 +112,7 @@ export default function TradingDashboard() {
 
       {error && <div className="error-banner">{error}</div>}
 
-      {activeTab === "filters" ? <FilterWorkspace /> : activeTab === "trade" ? (
+      {activeTab === "filters" ? <FilterWorkspace onOpenChart={openChart} onOrder={setOrderDraft} /> : activeTab === "chart" ? <ChartPanel symbol={symbol} onSymbolChange={setSymbol} onOrder={setOrderDraft} /> : activeTab === "trade" ? (
         <>
           <section className="search-panel">
             <label htmlFor="symbol">NSE equity symbol</label>
@@ -126,6 +131,7 @@ export default function TradingDashboard() {
                 <div className={`signal ${strategy.matched ? "match" : "no-match"}`}>
                   {strategy.matched ? "PATTERN MATCHED" : "NO MATCH"}
                 </div>
+                <div className="editor-actions"><button onClick={() => openChart(selectedSymbol)}>Open chart</button><button onClick={() => setOrderDraft(selectedSymbol)}>Place order</button></div>
                 <div className="rsi-row"><span>Previous RSI ({strategy.rsiPeriod})</span><strong>{strategy.previousCandleRSI.toFixed(2)}</strong></div>
               </article>
 
@@ -144,13 +150,14 @@ export default function TradingDashboard() {
           )}
         </>
       ) : (
-        <AccountPanel tab={activeTab} data={tabData} loading={loading} />
+        <AccountPanel tab={activeTab} data={tabData} loading={loading} onModify={setOrderDraft} onRefresh={() => setActiveTab("trade")} />
       )}
+      <OrderModal order={orderDraft} onClose={() => setOrderDraft(null)} />
     </main>
   );
 }
 
-function AccountPanel({ tab, data, loading }) {
+function AccountPanel({ tab, data, loading, onModify, onRefresh }) {
   if (loading) return <section className="empty-state">Loading {tab}…</section>;
   if (tab === "funds") {
     return <section className="account-card"><p className="eyebrow">EQUITY MARGINS</p><h2>₹{data?.available?.cash?.toLocaleString("en-IN") || "0"}</h2><p className="muted">Available cash</p><div className="rsi-row"><span>Utilised debits</span><strong>₹{data?.utilised?.debits?.toLocaleString("en-IN") || "0"}</strong></div></section>;
@@ -162,7 +169,7 @@ function AccountPanel({ tab, data, loading }) {
       <div className="table-header"><span>Symbol</span><span>Quantity</span><span>Status / P&amp;L</span></div>
       {rows.map((item, index) => (
         <div className="table-row" key={item.order_id || `${item.tradingsymbol}-${index}`}>
-          <strong>{item.tradingsymbol}</strong><span>{item.quantity}</span><span>{item.status || `₹${(item.pnl ?? item.last_price ?? 0).toLocaleString("en-IN")}`}</span>
+          <strong>{item.tradingsymbol}</strong><span>{item.quantity}</span><span>{item.status || `₹${(item.pnl ?? item.last_price ?? 0).toLocaleString("en-IN")}`}{tab === "orders" && ["OPEN", "TRIGGER PENDING"].includes(item.status) && <span className="inline-actions"><button onClick={() => onModify({ symbol: item.tradingsymbol, orderId: item.order_id })}>Modify</button><button onClick={async () => { if (!confirm(`Cancel order ${item.order_id}?`)) return; await api("/api/orders", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: item.order_id, symbol: item.tradingsymbol, side: item.transaction_type, quantity: item.quantity, orderType: item.order_type, product: item.product, price: item.price }) }); onRefresh(); }}>Cancel</button></span>}</span>
         </div>
       ))}
     </section>
