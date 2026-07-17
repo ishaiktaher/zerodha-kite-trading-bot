@@ -6,6 +6,7 @@
     "scripts": {
         "start": "node app.js",
         "dev": "nodemon app.js",
+        "test": "node --test",
         "cron": "node services/cronJobs.js",
         "debug": "node --inspect-brk app.js",
         "dev:debug": "nodemon --inspect=9229 app.js"

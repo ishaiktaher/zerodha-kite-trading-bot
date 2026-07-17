@@ -1,0 +1,4 @@
+client/
+server/
+.next/
+node_modules/

@@ -7,7 +7,7 @@ const sessionStore = require("../services/sessionStore");
 const API_KEY = process.env.KITE_API_KEY;
 const API_SECRET = process.env.KITE_API_SECRET;
 const JWT_SECRET = process.env.JWT_SECRET;
-const REDIRECT_URL = process.env.REDIRECT_URL;
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 const kite = new KiteConnect({ api_key: API_KEY });
 
@@ -32,11 +32,11 @@ router.get("/callback", async (req, res) => {
     const token = jwt.sign({ user_id }, JWT_SECRET, { expiresIn: "1h" });
 
     // Redirect to frontend with token
-    res.redirect(`http://localhost:3000/dashboard?token=${token}`);
+    res.redirect(`${FRONTEND_URL}/dashboard?token=${token}`);
   } catch (err) {
     console.error(JSON.stringify(err));
     const error = "Login failed. Please try again!";
-    res.redirect(`http://localhost:3000/login?error=${error}`);
+    res.redirect(`${FRONTEND_URL}/login?error=${encodeURIComponent(error)}`);
   }
 });
 
