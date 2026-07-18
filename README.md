@@ -66,7 +66,7 @@ Existing browser filters are imported once after login. Local storage remains an
 
 For index universes beyond the built-in NIFTY 50 list, configure comma-separated `NIFTY_100_SYMBOLS`, `NIFTY_200_SYMBOLS`, and `NIFTY_500_SYMBOLS`. `ALL_NSE_EQUITY` is derived from Kite's instrument master and cached for 24 hours.
 
-Vercel Cron calls `/api/cron/scans` every ten minutes using `CRON_SECRET`. Because Kite access tokens are intentionally not stored in the database and expire daily, unattended historical scans require a renewable secondary market-data provider. Until one is configured, scheduled runs are recorded as failed with an explicit explanation rather than weakening credential security.
+Vercel Cron calls `/api/cron/scans` once daily at 09:20 IST using `CRON_SECRET`, which is compatible with Vercel Hobby limits. Because Kite access tokens are intentionally not stored in the database and expire daily, unattended historical scans require a renewable secondary market-data provider. Until one is configured, scheduled runs are recorded as failed with an explicit explanation rather than weakening credential security.
 
 ## Safety and data permissions
 
