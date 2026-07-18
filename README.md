@@ -14,6 +14,11 @@ This repository is now a single Next.js full-stack application. The interface an
 - Numeric and indicator-to-indicator comparisons using greater than, less than, equal, not equal, crosses above, and crosses below operators.
 - A one-click three-candle preset for previous Open > Close conditions and latest Open < Close.
 - NIFTY 50 scanning with matching symbols and their latest closing prices.
+- Supabase Postgres persistence for filters, scan history, watchlists, alerts, and an independent order audit log.
+- Configurable NIFTY 50/100/200/500, all-NSE-equity, and watchlist universes with a daily cached Kite instrument master.
+- Daily, weekly, 15-minute, and hourly historical scans with AND/OR condition logic, retry/backoff, and preset strategies.
+- Interactive candlestick and volume charts powered by TradingView Lightweight Charts, with SMA/EMA overlays and a horizontal drawing line.
+- Confirmed manual place/modify/cancel order actions; scan matches are never auto-executed.
 
 Historical-data analysis and NIFTY 50 scans require a Kite Connect subscription that permits historical candle requests. The application currently detects setups and displays account information; it does not automatically place trades.
 
@@ -41,7 +46,7 @@ The present-day candle changes while the market is open, so an intraday match is
    ```bash
    npm install
    cp .env.example .env.local
-   # Add KITE_API_KEY, KITE_API_SECRET, and JWT_SECRET
+   # Add KITE_API_KEY, KITE_API_SECRET, JWT_SECRET, DATABASE_URL, and CRON_SECRET
    npm run dev
    ```
 
@@ -52,6 +57,23 @@ The present-day candle changes while the market is open, so an intraday match is
    ```
 
 For Vercel, set the same three secrets as project environment variables and configure the production callback as `https://YOUR-DOMAIN/api/auth/callback` in the Kite developer console.
+
+## Database setup
+
+Create a Supabase project and run [`supabase/migrations/202607170001_hybrid_terminal.sql`](./supabase/migrations/202607170001_hybrid_terminal.sql) in its SQL editor. Add the pooled Postgres connection string as `DATABASE_URL`. The application uses a private `zeta_gain` schema through server-only queries; Supabase browser keys are neither needed nor exposed.
+
+Existing browser filters are imported once after login. Local storage remains an offline cache, while Postgres becomes the source of truth when configured.
+
+For index universes beyond the built-in NIFTY 50 list, configure comma-separated `NIFTY_100_SYMBOLS`, `NIFTY_200_SYMBOLS`, and `NIFTY_500_SYMBOLS`. `ALL_NSE_EQUITY` is derived from Kite's instrument master and cached for 24 hours.
+
+Vercel Cron calls `/api/cron/scans` once daily at 09:20 IST using `CRON_SECRET`, which is compatible with Vercel Hobby limits. Because Kite access tokens are intentionally not stored in the database and expire daily, unattended historical scans require a renewable secondary market-data provider. Until one is configured, scheduled runs are recorded as failed with an explicit explanation rather than weakening credential security.
+
+## Safety and data permissions
+
+- Historical scans and charts require the paid Kite historical-data permission.
+- Placing, modifying, or cancelling an order requires a human confirmation. No scan automatically trades.
+- `orders_log` is a local audit trail; Kite remains the order-book source of truth.
+- Intraday charts use on-demand historical candles; real-time WebSocket streaming is a future enhancement.
 ## Screenshots
 
    1. **Dashboard**

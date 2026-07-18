@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createKite, createSession, SESSION_COOKIE } from "@/lib/kite";
+import { ensureUser } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,7 @@ export async function GET(request) {
 
   try {
     const session = await createKite().generateSession(requestToken, process.env.KITE_API_SECRET);
+    if (process.env.DATABASE_URL) await ensureUser(session.user_id);
     const token = createSession({
       accessToken: session.access_token,
       userId: session.user_id,

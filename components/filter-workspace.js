@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { INDICATORS, OPERATORS } from "@/lib/screener";
+import { INDICATORS, OPERATORS, PRESET_SCANS } from "@/lib/screener";
 
 const STORAGE_KEY = "zeta-gain-filters-v1";
 
@@ -17,7 +17,7 @@ function newFilter() {
   return { id: crypto.randomUUID(), name: "Untitled filter", conditions: [newCondition()], updatedAt: new Date().toISOString() };
 }
 
-export function FilterWorkspace() {
+export function FilterWorkspace({ onOpenChart = () => {}, onOrder = () => {} }) {
   const [filters, setFilters] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [indicatorSearch, setIndicatorSearch] = useState("");
@@ -26,10 +26,21 @@ export function FilterWorkspace() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    const initial = saved.length ? saved : [newFilter()];
-    setFilters(initial);
-    setSelectedId(initial[0].id);
+    const cached = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    async function load() {
+      try {
+        if (cached.length && !localStorage.getItem(`${STORAGE_KEY}-imported`)) {
+          await fetch("/api/filters/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filters: cached }) });
+          localStorage.setItem(`${STORAGE_KEY}-imported`, "true");
+        }
+        const response = await fetch("/api/filters");
+        if (!response.ok) throw new Error();
+        const remote = await response.json();
+        const initial = remote.length ? remote : [newFilter()];
+        setFilters(initial); setSelectedId(initial[0].id);
+      } catch { const initial = cached.length ? cached : [newFilter()]; setFilters(initial); setSelectedId(initial[0].id); }
+    }
+    load();
   }, []);
 
   useEffect(() => {
@@ -39,13 +50,19 @@ export function FilterWorkspace() {
   const selected = filters.find((filter) => filter.id === selectedId);
 
   function updateSelected(updater) {
-    setFilters((current) => current.map((filter) => filter.id === selectedId ? { ...updater(filter), updatedAt: new Date().toISOString() } : filter));
+    setFilters((current) => current.map((filter) => {
+      if (filter.id !== selectedId) return filter;
+      const next = { ...updater(filter), updatedAt: new Date().toISOString() };
+      fetch(`/api/filters/${next.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) }).catch(() => {});
+      return next;
+    }));
     setResults(null);
   }
 
   function createFilter() {
     const filter = newFilter();
     setFilters((current) => [...current, filter]);
+    fetch("/api/filters", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(filter) }).catch(() => {});
     setSelectedId(filter.id);
     setResults(null);
   }
@@ -55,6 +72,7 @@ export function FilterWorkspace() {
     setFilters(remaining);
     setSelectedId(remaining[0]?.id || null);
     setResults(null);
+    fetch(`/api/filters/${id}`, { method: "DELETE" }).catch(() => {});
   }
 
   async function scan() {
@@ -65,7 +83,7 @@ export function FilterWorkspace() {
       const response = await fetch("/api/filters/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conditions: selected.conditions }),
+        body: JSON.stringify({ filterId: selected.id, conditions: { logic: selected.conditionLogic || "AND", items: selected.conditions }, universe: selected.universe || "NIFTY_50", timeframe: selected.timeframe || "day" }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Scan failed");
@@ -114,8 +132,15 @@ export function FilterWorkspace() {
               )}
             </div>
 
+            <div className="filter-settings">
+              <label>Universe<select value={selected.universe || "NIFTY_50"} onChange={(event) => updateSelected((filter) => ({ ...filter, universe: event.target.value }))}>{["NIFTY_50", "NIFTY_100", "NIFTY_200", "NIFTY_500", "ALL_NSE_EQUITY"].map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label>Timeframe<select value={selected.timeframe || "day"} onChange={(event) => updateSelected((filter) => ({ ...filter, timeframe: event.target.value }))}><option value="day">Daily</option><option value="week">Weekly</option><option value="15minute">15 minute</option><option value="60minute">1 hour</option></select></label>
+              <label>Daily schedule<input type="time" value={selected.runDailyAt || ""} onChange={(event) => updateSelected((filter) => ({ ...filter, runDailyAt: event.target.value, isActive: Boolean(event.target.value) }))} /></label>
+              <label>Preset<select defaultValue="" onChange={(event) => { const preset = PRESET_SCANS.find((item) => item.id === event.target.value); if (preset) updateSelected((filter) => ({ ...filter, name: preset.name, conditions: preset.conditions.items })); event.target.value = ""; }}><option value="">Choose preset…</option>{PRESET_SCANS.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            </div>
+
             <div className="condition-stack">
-              <p className="condition-intro">Stock passes <strong>all</strong> of the following daily conditions:</p>
+              <p className="condition-intro">Stock passes <select value={selected.conditionLogic || "AND"} onChange={(event) => updateSelected((filter) => ({ ...filter, conditionLogic: event.target.value }))}><option value="AND">all (AND)</option><option value="OR">any (OR)</option></select> of the following conditions:</p>
               {selected.conditions.map((condition, index) => (
                 <ConditionRow key={condition.id} condition={condition} index={index} onChange={(next) => updateSelected((filter) => ({ ...filter, conditions: filter.conditions.map((item) => item.id === condition.id ? next : item) }))} onDelete={() => updateSelected((filter) => ({ ...filter, conditions: filter.conditions.filter((item) => item.id !== condition.id) }))} />
               ))}
@@ -126,7 +151,7 @@ export function FilterWorkspace() {
             </div>
 
             {error && <div className="error-banner">{error}</div>}
-            {results && <FilterResults results={results} />}
+            {results && <FilterResults results={results} onOpenChart={onOpenChart} onOrder={onOrder} />}
           </>
         )}
       </div>
@@ -158,12 +183,12 @@ function ConditionRow({ condition, index, onChange, onDelete }) {
   );
 }
 
-function FilterResults({ results }) {
+function FilterResults({ results, onOpenChart, onOrder }) {
   return (
     <section className="scan-results">
       <div className="results-heading"><div><p className="eyebrow">SCAN COMPLETE</p><h2>{results.matches.length} matches</h2></div><p>{results.scanned} stocks scanned · {results.universe}</p></div>
       {results.matches.length === 0 ? <div className="empty-state">No stocks match every condition right now.</div> : (
-        <div className="result-grid">{results.matches.map((match) => <article key={match.symbol}><strong>{match.symbol}</strong><span>₹{match.close.toLocaleString("en-IN")}</span><small>{match.details.length}/{match.details.length} passed</small></article>)}</div>
+        <div className="result-grid">{results.matches.map((match) => <article key={match.symbol}><strong>{match.symbol}</strong><span>₹{match.ltp.toLocaleString("en-IN")} <small className={match.change >= 0 ? "pass-text" : "fail-text"}>{match.change.toFixed(2)}%</small></span><small>{match.details.length}/{match.details.length} conditions passed</small><div className="result-actions"><button onClick={() => onOpenChart(match.symbol)}>Open chart</button><button onClick={() => onOrder(match.symbol)}>Place order</button></div></article>)}</div>
       )}
     </section>
   );
