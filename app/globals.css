@@ -74,13 +74,17 @@ button, .primary-button { cursor: pointer; }
 .condition-stack { border: 1px solid var(--line); border-radius: 12px; padding: 20px; background: #0d1310; }
 .condition-intro { color: var(--muted); margin: 0 0 12px; }
 .condition-intro strong { color: var(--green); }
-.filter-condition { display: grid; grid-template-columns: 28px 110px minmax(130px, 1fr) 70px minmax(150px, 1fr) 92px minmax(220px, 1.5fr) 34px; align-items: center; gap: 9px; padding: 12px 0; border-bottom: 1px solid #1c2822; }
-.condition-number { color: var(--muted); font-size: 12px; }
+.filter-condition { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; padding: 12px 0; border-bottom: 1px solid #1c2822; }
+.condition-number { flex: 0 0 28px; color: var(--muted); font-size: 12px; }
 .filter-condition select, .filter-condition input { min-width: 0; height: 40px; padding: 0 10px; border: 1px solid #2a3932; border-radius: 7px; background: #141d19; color: var(--text); }
-.filter-condition .period-input { width: 70px; }
-.right-operand { display: flex; gap: 7px; min-width: 0; }
-.right-operand select { flex: 1; }
+.filter-condition > select { flex: 1 1 112px; }
+.filter-condition > .right-type { flex: 0 1 100px; }
+.filter-condition > .value-input { flex: 1 1 110px; }
+.filter-condition .period-input { flex: 0 0 70px; width: 70px; }
+.right-operand { display: grid; grid-template-columns: minmax(105px, .9fr) minmax(120px, 1.1fr) auto; flex: 2 1 285px; gap: 7px; min-width: 0; }
+.right-operand select { width: 100%; }
 .right-operand .period-input { flex: 0 0 66px; }
+.remove-condition { flex: 0 0 34px; margin-left: auto; }
 .condition-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .preset-condition { color: #84e5b6; border-color: #2b5d45; }
 .filter-settings, .chart-toolbar { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
@@ -109,5 +113,5 @@ button, .primary-button { cursor: pointer; }
 .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
 .result-grid article { display: grid; grid-template-columns: 1fr auto; gap: 6px; padding: 16px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
 .result-grid article small { grid-column: 1 / -1; color: var(--green); }
-@media (max-width: 980px) { .filter-layout { grid-template-columns: 1fr; }.filter-sidebar { border-right: 0; border-bottom: 1px solid var(--line); }.filter-list { grid-template-columns: repeat(2, 1fr); }.filter-condition { grid-template-columns: 28px 1fr 1fr; }.filter-condition .period-input { width: 100%; }.result-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 720px) { .terminal-shell { width: min(100% - 24px, 1180px); }.dashboard-grid { grid-template-columns: 1fr; }.topbar-actions span { display: none; }.login-card { padding: 30px 22px; }.hero { padding-top: 42px; }.search-row, .filter-editor-header, .editor-actions { flex-direction: column; align-items: stretch; }.filter-main { padding: 18px 14px; }.filter-list { grid-template-columns: 1fr; }.filter-condition { grid-template-columns: 24px 1fr; }.filter-condition > *:not(.condition-number) { grid-column: 2; }.result-grid { grid-template-columns: 1fr; }.results-heading { align-items: flex-start; flex-direction: column; }.order-form { grid-template-columns: 1fr; }.chart-toolbar > * { width: 100%; } }
+@media (max-width: 980px) { .filter-layout { grid-template-columns: 1fr; }.filter-sidebar { border-right: 0; border-bottom: 1px solid var(--line); }.filter-list { grid-template-columns: repeat(2, 1fr); }.result-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px) { .terminal-shell { width: min(100% - 24px, 1180px); }.dashboard-grid { grid-template-columns: 1fr; }.topbar-actions span { display: none; }.login-card { padding: 30px 22px; }.hero { padding-top: 42px; }.search-row, .filter-editor-header, .editor-actions { flex-direction: column; align-items: stretch; }.filter-main { padding: 18px 14px; }.filter-list { grid-template-columns: 1fr; }.filter-condition { display: grid; grid-template-columns: 24px minmax(0, 1fr); }.filter-condition > *:not(.condition-number) { grid-column: 2; width: 100%; }.right-operand { grid-template-columns: 1fr; }.remove-condition { margin-left: 0; }.result-grid { grid-template-columns: 1fr; }.results-heading { align-items: flex-start; flex-direction: column; }.order-form { grid-template-columns: 1fr; }.chart-toolbar > * { width: 100%; } }
