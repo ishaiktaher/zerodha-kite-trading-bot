@@ -80,6 +80,7 @@ export default function TradingDashboard() {
           <div className="brand-mark">ZG</div>
           <p className="eyebrow">PERSONAL TRADING TERMINAL</p>
           <h1>Zeta Gain</h1>
+          <p className="product-credit">A Vouchins product</p>
           <p className="muted">Analyze your liquidity-grab strategy using your own Zerodha account.</p>
           {loginError && <p className="error-banner">{loginError}</p>}
           <a className="primary-button" href="/api/auth/login">Connect Zerodha</a>
@@ -92,7 +93,7 @@ export default function TradingDashboard() {
   return (
     <main className="terminal-shell">
       <header className="topbar">
-        <div><span className="logo">ZG</span><strong>Zeta Gain</strong><span className="status-dot" />LIVE</div>
+        <div><span className="logo">ZG</span><span className="brand-title"><strong>Zeta Gain</strong><small>A Vouchins product</small></span><span className="status-dot" />LIVE</div>
         <div className="topbar-actions"><span>{session.userId}</span><button onClick={async () => { await api("/api/auth/logout", { method: "POST" }); location.reload(); }}>Sign out</button></div>
       </header>
 
