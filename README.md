@@ -19,6 +19,7 @@ This repository is now a single Next.js full-stack application. The interface an
 - Daily, weekly, 15-minute, and hourly historical scans with AND/OR condition logic, retry/backoff, and preset strategies.
 - Interactive candlestick and volume charts powered by TradingView Lightweight Charts, with SMA/EMA overlays and a horizontal drawing line.
 - Confirmed manual place/modify/cancel order actions; scan matches are never auto-executed.
+- An attributed Market Structure (Fractal) overlay and scanner signals for bullish/bearish BOS, CHoCH, and support/resistance breaks.
 
 Historical-data analysis and NIFTY 50 scans require a Kite Connect subscription that permits historical candle requests. The application currently detects setups and displays account information; it does not automatically place trades.
 
@@ -74,6 +75,10 @@ Vercel Cron calls `/api/cron/scans` once daily at 09:20 IST using `CRON_SECRET`,
 - Placing, modifying, or cancelling an order requires a human confirmation. No scan automatically trades.
 - `orders_log` is a local audit trail; Kite remains the order-book source of truth.
 - Intraday charts use on-demand historical candles; real-time WebSocket streaming is a future enhancement.
+
+## Third-party indicator attribution
+
+The personal-use Market Structure (Fractal) implementation is adapted from LuxAlgo's “Market Structure CHoCH/BOS (Fractal)” and is distributed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). It must remain non-commercial unless separate permission is obtained from the original author.
 ## Screenshots
 
    1. **Dashboard**
