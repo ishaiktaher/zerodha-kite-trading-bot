@@ -1,97 +1,209 @@
-# Zeta Gain — Zerodha Personal Trading Terminal
+# Zeta Gain
 
-This repository is now a single Next.js full-stack application. The interface and authenticated Kite Connect API routes are served from one origin locally and on Vercel.
+**A Vouchins product**
 
-## Current functionality
+Zeta Gain is a personal Zerodha-integrated trading terminal that combines Chartink-style technical screening, TradingView-style charts, and Kite account/order management in one Next.js application.
 
-- Zerodha Kite Connect login and logout with a signed, HTTP-only session cookie.
-- Live NSE quote lookup for a user-entered equity symbol.
-- Liquidity-grab analysis using three daily candles and previous-day RSI(14).
-- Account views for orders, holdings, positions, and available equity funds.
-- A reusable filter builder with create, rename, edit, and delete operations. Filters are saved in the browser.
-- Technical conditions using Open, High, Low, Close, Volume, RSI, SMA, and EMA.
-- Latest, one-day-ago, and two-days-ago candle references on either side of a comparison.
-- Numeric and indicator-to-indicator comparisons using greater than, less than, equal, not equal, crosses above, and crosses below operators.
-- A one-click three-candle preset for previous Open > Close conditions and latest Open < Close.
-- NIFTY 50 scanning with matching symbols and their latest closing prices.
-- Supabase Postgres persistence for filters, scan history, watchlists, alerts, and an independent order audit log.
-- Configurable NIFTY 50/100/200/500, all-NSE-equity, and watchlist universes with a daily cached Kite instrument master.
-- Daily, weekly, 15-minute, and hourly historical scans with AND/OR condition logic, retry/backoff, and preset strategies.
-- Interactive candlestick and volume charts powered by TradingView Lightweight Charts, with SMA/EMA overlays and a horizontal drawing line.
-- Confirmed manual place/modify/cancel order actions; scan matches are never auto-executed.
-- An attributed Market Structure (Fractal) overlay and scanner signals for bullish/bearish BOS, CHoCH, and support/resistance breaks.
+Production: [zerodha-kite-trading-bot.vercel.app](https://zerodha-kite-trading-bot.vercel.app)
 
-Historical-data analysis and NIFTY 50 scans require a Kite Connect subscription that permits historical candle requests. The application currently detects setups and displays account information; it does not automatically place trades.
+> Zeta Gain is currently designed for personal use. A standard Kite Connect application is restricted to the Zerodha client ID associated with that application. Multi-user access requires approval from Zerodha.
 
-## Liquidity-grab strategy
+## Features
 
-The strategy endpoint evaluates the latest three daily candles for a selected NSE equity:
+### Technical scanner
 
-1. The two previous candles must be red (`close < open`).
-2. The present-day candle must be green (`close > open`).
-3. RSI(14), calculated at the previous day's close, must be below 50.
+- Create, name, edit, and delete reusable filters.
+- Combine conditions using `AND` or `OR`.
+- Compare indicators with numbers or other indicators.
+- Reference the latest, previous, or older candles.
+- Scan daily, weekly, 15-minute, and hourly candles.
+- Scan NIFTY 50, configured NIFTY 100/200/500 lists, all NSE equities, or custom watchlists.
+- Rate-limited historical-data requests with controlled concurrency and exponential backoff.
+- Results include the symbol, latest price, percentage change, matched conditions, chart action, and order action.
 
-The present-day candle changes while the market is open, so an intraday match is provisional until the daily candle closes. This implementation detects and displays the setup; it does not automatically place an order.
+Supported indicators include:
 
-## Setup
+- Open, High, Low, Close, and Volume
+- RSI
+- SMA and EMA
+- Highest Close and Average Volume
+- Bullish/Bearish BOS
+- Bullish/Bearish CHoCH
+- Support and Resistance Breaks
 
-1. **Clone the repo**
+Supported comparisons include greater than, less than, equal, not equal, crosses above, and crosses below.
 
-   ```bash
-   git clone https://github.com/your-repo/algo-trading-bot.git
-   cd algo-trading-bot
-   ```
+### Preset strategies
 
-2. Install and configure the application
+- Three-candle reversal
+- Liquidity-grab setup
+- 52-week breakout
+- Volume spike
+- RSI oversold bounce
+- EMA 20/50 golden cross
+- Bullish market-structure change
 
-   ```bash
-   npm install
-   cp .env.example .env.local
-   # Add KITE_API_KEY, KITE_API_SECRET, JWT_SECRET, DATABASE_URL, and CRON_SECRET
-   npm run dev
-   ```
+### Liquidity-grab analysis
 
-3. Configure the Kite Connect redirect URL
+The built-in setup checks:
 
-   ```bash
-   http://localhost:3000/api/auth/callback
-   ```
+1. The two previous daily candles are red (`close < open`).
+2. The present daily candle is green (`close > open`).
+3. RSI(14), calculated at the previous candle close, is below 50.
 
-For Vercel, set the same three secrets as project environment variables and configure the production callback as `https://YOUR-DOMAIN/api/auth/callback` in the Kite developer console.
+The current daily candle remains provisional until the market closes.
 
-## Database setup
+### Interactive charts
 
-Create a Supabase project and run [`supabase/migrations/202607170001_hybrid_terminal.sql`](./supabase/migrations/202607170001_hybrid_terminal.sql) in its SQL editor. Add the pooled Postgres connection string as `DATABASE_URL`. The application uses a private `zeta_gain` schema through server-only queries; Supabase browser keys are neither needed nor exposed.
+- Candlestick and volume charts powered by TradingView Lightweight Charts.
+- Daily, weekly, 15-minute, and hourly timeframes.
+- SMA 20, EMA 20, and EMA 50 overlays.
+- Horizontal price-line drawing.
+- Market Structure overlay with BOS/CHoCH markers and support/resistance lines.
+- Direct navigation from scan results to charts and order entry.
 
-Existing browser filters are imported once after login. Local storage remains an offline cache, while Postgres becomes the source of truth when configured.
+### Zerodha account and orders
 
-For index universes beyond the built-in NIFTY 50 list, configure comma-separated `NIFTY_100_SYMBOLS`, `NIFTY_200_SYMBOLS`, and `NIFTY_500_SYMBOLS`. `ALL_NSE_EQUITY` is derived from Kite's instrument master and cached for 24 hours.
+- View orders, holdings, positions, funds, and position P&L.
+- Place Buy and Sell orders.
+- Market, Limit, SL, and SL-M order types.
+- MIS, CNC, and NRML products.
+- Modify and cancel open orders.
+- Review the estimated order value before sending a real order.
+- Maintain an independent local audit log while Kite remains the order-book source of truth.
 
-Vercel Cron calls `/api/cron/scans` once daily at 09:20 IST using `CRON_SECRET`, which is compatible with Vercel Hobby limits. Because Kite access tokens are intentionally not stored in the database and expire daily, unattended historical scans require a renewable secondary market-data provider. Until one is configured, scheduled runs are recorded as failed with an explicit explanation rather than weakening credential security.
+Scan results are never traded automatically. Every order requires explicit user confirmation.
 
-## Safety and data permissions
+### Persistence and scheduling
 
-- Historical scans and charts require the paid Kite historical-data permission.
-- Placing, modifying, or cancelling an order requires a human confirmation. No scan automatically trades.
-- `orders_log` is a local audit trail; Kite remains the order-book source of truth.
-- Intraday charts use on-demand historical candles; real-time WebSocket streaming is a future enhancement.
+The optional Supabase/Postgres layer stores:
 
-## Third-party indicator attribution
+- Users
+- Filters
+- Scan runs
+- Watchlists
+- Alerts
+- Order audit records
 
-The personal-use Market Structure (Fractal) implementation is adapted from LuxAlgo's “Market Structure CHoCH/BOS (Fractal)” and is distributed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). It must remain non-commercial unless separate permission is obtained from the original author.
-## Screenshots
+Existing browser filters are imported once after login. Local storage remains an offline cache.
 
-   1. **Dashboard**
-   ![ALT TEXT](./client/public/images/dashboard.png)
+A Vercel Hobby-compatible cron endpoint runs once daily at **09:20 IST**. Unattended scans intentionally fail closed until a renewable secondary data provider is configured because short-lived Kite access tokens are not stored in the database.
 
-   2. **Funds**
-   ![ALT TEXT](./client/public/images/funds-overview.png)
+## Technology
 
-   3. **Login**
-   ![ALT TEXT](./client/public/images/login.png)
+- Next.js App Router
+- React
+- Kite Connect
+- TradingView Lightweight Charts
+- Supabase Postgres
+- Vercel
+- Node.js test runner
 
-   4. **Orders**
-   ![ALT TEXT](./client/public/images/orders.png)
+## Local setup
 
-   4. **Portfolio**
-   ![ALT TEXT](./client/public/images/portfolio.png)
+### 1. Clone and install
+
+```bash
+git clone https://github.com/ishaiktaher/zerodha-kite-trading-bot.git
+cd zerodha-kite-trading-bot
+npm install
+```
+
+### 2. Configure environment variables
+
+```bash
+cp .env.example .env.local
+```
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `KITE_API_KEY` | Yes | API key from the Kite developer console |
+| `KITE_API_SECRET` | Yes | Secret belonging to the same Kite application |
+| `JWT_SECRET` | Yes | Signs the secure application session cookie |
+| `DATABASE_URL` | For persistence | Supabase pooled Postgres connection string |
+| `CRON_SECRET` | For cron | Protects the scheduled-scan endpoint |
+| `NIFTY_100_SYMBOLS` | Optional | Comma-separated index constituents |
+| `NIFTY_200_SYMBOLS` | Optional | Comma-separated index constituents |
+| `NIFTY_500_SYMBOLS` | Optional | Comma-separated index constituents |
+| `ALERT_WEBHOOK_ALLOWLIST` | Optional | Allowed alert destinations |
+
+Generate a strong JWT secret, for example:
+
+```bash
+openssl rand -base64 32
+```
+
+Do not commit `.env.local` or expose `KITE_API_SECRET`, `JWT_SECRET`, or `DATABASE_URL` to browser code.
+
+### 3. Configure Kite Connect
+
+Set the local redirect URL in the Kite developer console:
+
+```text
+http://localhost:3000/api/auth/callback
+```
+
+For production, use:
+
+```text
+https://YOUR-DOMAIN/api/auth/callback
+```
+
+The API key and API secret must come from the same Kite application. Historical scanning and charting require a Kite plan with historical-data permission.
+
+### 4. Configure Supabase
+
+Create a Supabase project and run:
+
+```text
+supabase/migrations/202607170001_hybrid_terminal.sql
+```
+
+The migration creates a private `zeta_gain` schema. Database access remains server-side; no Supabase service key is sent to the browser.
+
+Use the pooled Postgres connection string for `DATABASE_URL`, especially on Vercel.
+
+### 5. Start the application
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Testing and production build
+
+```bash
+npm test
+npm run build
+```
+
+The test suite covers the liquidity-grab strategy, RSI calculations, filter grouping, market-data batching, instrument caching, order auditing, saved-filter evaluation, and Market Structure BOS/CHoCH behavior.
+
+## Deploying to Vercel
+
+1. Import this GitHub repository into Vercel.
+2. Add the required environment variables.
+3. Set the Kite production callback URL to the deployed `/api/auth/callback` route.
+4. Deploy the `main` branch.
+
+The included `vercel.json` configures the once-daily Hobby-compatible cron schedule.
+
+## Important limitations
+
+- Standard Kite Connect apps are personal-use and single-client by default.
+- Historical scans and charts require the appropriate Kite market-data permission.
+- Real-time tick-by-tick WebSocket chart streaming is not implemented.
+- Scheduled scans require a renewable data provider before they can run unattended.
+- NIFTY 100/200/500 membership must be supplied through environment variables.
+- This project does not automatically execute scan matches.
+
+## Market Structure attribution
+
+The personal-use Market Structure (Fractal) implementation is adapted from LuxAlgo's **Market Structure CHoCH/BOS (Fractal)** and distributed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+
+It must remain non-commercial unless separate permission is obtained from the original author.
+
+## Disclaimer
+
+This project is an analysis and order-entry tool, not investment advice. Trading involves risk. Verify every signal and order before acting.
