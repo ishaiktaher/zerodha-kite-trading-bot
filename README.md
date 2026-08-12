@@ -206,4 +206,4 @@ It must remain non-commercial unless separate permission is obtained from the or
 
 ## Disclaimer
 
-This project is an analysis and order-entry tool, not investment advice. Trading involves risk. Verify every signal and order before acting.
+This project is an analysis and order-entry tool, not investment advice. Trading involves risk, Verify every signal and order before acting.
