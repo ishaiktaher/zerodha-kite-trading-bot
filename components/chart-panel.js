@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CandlestickSeries, ColorType, createChart, createSeriesMarkers, HistogramSeries, LineSeries, LineStyle } from "lightweight-charts";
 import { calculateMarketStructure } from "@/lib/market-structure";
+import { detectAllFVGs } from "@/lib/breakout-fvg";
 
 function movingAverage(candles, period, exponential = false, timeOf = (candle) => String(candle.date || candle.time).slice(0, 10)) {
   let value = 0;
@@ -73,6 +74,24 @@ export function ChartPanel({ symbol, onSymbolChange, onOrder }) {
         line.setData([{ time: timeOf(candles[level.startIndex]), value: level.price }, { time: timeOf(candles[level.endIndex]), value: level.price }]);
       });
     }
+    if (indicator === "fvg") {
+      const fvgs = detectAllFVGs(candles);
+      createSeriesMarkers(candleSeries, fvgs.map((fvg) => ({
+        time: timeOf(candles[fvg.index]),
+        position: fvg.type === "bullish" ? "belowBar" : "aboveBar",
+        color: fvg.type === "bullish" ? "#37d996" : "#ef6b73",
+        shape: fvg.type === "bullish" ? "arrowUp" : "arrowDown",
+        text: `${fvg.type === "bullish" ? "B-FVG" : "S-FVG"} ₹${fvg.gapSize}`,
+      })));
+      fvgs.slice(-10).forEach((fvg) => {
+        const topEndIdx = Math.min(candles.length - 1, fvg.index + 5);
+        const color = fvg.type === "bullish" ? "#37d996" : "#ef6b73";
+        const topLine = chart.addSeries(LineSeries, { color, lineWidth: 1, lineStyle: LineStyle.Dotted, priceLineVisible: false, lastValueVisible: false });
+        topLine.setData([{ time: timeOf(candles[fvg.index - 2]), value: fvg.top }, { time: timeOf(candles[topEndIdx]), value: fvg.top }]);
+        const bottomLine = chart.addSeries(LineSeries, { color, lineWidth: 1, lineStyle: LineStyle.Dotted, priceLineVisible: false, lastValueVisible: false });
+        bottomLine.setData([{ time: timeOf(candles[fvg.index - 2]), value: fvg.bottom }, { time: timeOf(candles[topEndIdx]), value: fvg.bottom }]);
+      });
+    }
     chart.timeScale().fitContent();
     chartApi.current = chart; candleApi.current = candleSeries;
     const resize = () => chart.applyOptions({ width: host.current?.clientWidth || 800 });
@@ -88,8 +107,8 @@ export function ChartPanel({ symbol, onSymbolChange, onOrder }) {
   return <section className="chart-panel">
     <div className="chart-toolbar">
       <input value={symbol} onChange={(event) => onSymbolChange(event.target.value.toUpperCase())} aria-label="Chart symbol" />
-      <select value={timeframe} onChange={(event) => setTimeframe(event.target.value)}><option value="day">1D</option><option value="week">1W</option><option value="15minute">15m</option><option value="60minute">1h</option></select>
-      <select value={indicator} onChange={(event) => setIndicator(event.target.value)}><option value="none">No overlay</option><option value="sma20">SMA 20</option><option value="ema20">EMA 20</option><option value="ema50">EMA 50</option><option value="marketStructure">Market Structure BOS/CHoCH</option></select>
+      <select value={timeframe} onChange={(event) => setTimeframe(event.target.value)}><option value="day">1D</option><option value="week">1W</option><option value="60minute">1h</option><option value="15minute">15m</option><option value="5minute">5m</option></select>
+      <select value={indicator} onChange={(event) => setIndicator(event.target.value)}><option value="none">No overlay</option><option value="sma20">SMA 20</option><option value="ema20">EMA 20</option><option value="ema50">EMA 50</option><option value="marketStructure">Market Structure BOS/CHoCH</option><option value="fvg">Fair Value Gap (FVG)</option></select>
       {indicator === "marketStructure" && <input type="number" min="3" max="25" value={structureLength} onChange={(event) => setStructureLength(Number(event.target.value))} aria-label="Market structure fractal length" />}
       <button onClick={addHorizontalLine}>Horizontal line</button>
       <button className="primary-button" onClick={() => onOrder(symbol)}>Place order</button>

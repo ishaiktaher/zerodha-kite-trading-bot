@@ -12,7 +12,7 @@ export const maxDuration = 300;
 export async function POST(request) {
   try {
     const { filterId, conditions, universe = "NIFTY_50", timeframe = "day", symbols = [] } = await request.json();
-    if ((!Array.isArray(conditions) && !conditions?.items?.length) || !["day", "week", "15minute", "60minute"].includes(timeframe)) {
+    if ((!Array.isArray(conditions) && !conditions?.items?.length) || !["day", "week", "15minute", "5minute", "60minute"].includes(timeframe)) {
       return Response.json({ error: "Valid conditions and timeframe are required" }, { status: 400 });
     }
     const session = await requireSession();

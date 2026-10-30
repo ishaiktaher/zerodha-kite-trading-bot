@@ -21,6 +21,7 @@ async function api(path, options) {
 
 export default function TradingDashboard() {
   const [session, setSession] = useState(null);
+  const [strategyMode, setStrategyMode] = useState("breakout-fvg");
   const [symbol, setSymbol] = useState("INFY");
   const [selectedSymbol, setSelectedSymbol] = useState("");
   const [quote, setQuote] = useState(null);
@@ -52,9 +53,10 @@ export default function TradingDashboard() {
     setError("");
     setSelectedSymbol(symbol);
     try {
+      const endpoint = strategyMode === "breakout-fvg" ? "/api/strategy/breakout-fvg" : "/api/strategy";
       const [nextQuote, nextStrategy] = await Promise.all([
         api(`/api/market/quote?symbol=${encodeURIComponent(symbol)}`),
-        api("/api/strategy", {
+        api(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ symbol }),
@@ -98,9 +100,9 @@ export default function TradingDashboard() {
       </header>
 
       <section className="hero">
-        <p className="eyebrow">{activeTab === "filters" ? "CUSTOM STOCK SCREENER" : "LIQUIDITY GRAB SCANNER"}</p>
-        <h1>{activeTab === "filters" ? "Build the signal you want to find." : "Test the setup, candle by candle."}</h1>
-        <p>{activeTab === "filters" ? "Create reusable technical filters and scan the NIFTY 50 universe." : "Two red daily candles, a green present candle, and previous-day RSI below 50."}</p>
+        <p className="eyebrow">{activeTab === "filters" ? "CUSTOM STOCK SCREENER" : activeTab === "chart" ? "INTERACTIVE CHARTS" : strategyMode === "breakout-fvg" ? "15M SWEEP + 5M FAIR VALUE GAP" : "LIQUIDITY GRAB SCANNER"}</p>
+        <h1>{activeTab === "filters" ? "Build the signal you want to find." : activeTab === "chart" ? "Analyze price action across timeframes." : strategyMode === "breakout-fvg" ? "Multi-timeframe liquidity sweep & FVG." : "Test the setup, candle by candle."}</h1>
+        <p>{activeTab === "filters" ? "Create reusable technical filters and scan the NIFTY 50 universe." : activeTab === "chart" ? "Candlesticks, volume, market structure BOS/CHoCH, and Fair Value Gaps." : strategyMode === "breakout-fvg" ? "15-minute 14-candle high sweep (High > H14, Close < H14) with 5-minute cut candle Fair Value Gap." : "Two red daily candles, a green present candle, and previous-day RSI below 50."}</p>
       </section>
 
       <nav className="tabs">
@@ -116,6 +118,24 @@ export default function TradingDashboard() {
       {activeTab === "filters" ? <FilterWorkspace onOpenChart={openChart} onOrder={setOrderDraft} /> : activeTab === "chart" ? <ChartPanel symbol={symbol} onSymbolChange={setSymbol} onOrder={setOrderDraft} /> : activeTab === "trade" ? (
         <>
           <section className="search-panel">
+            <div style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
+              <button
+                type="button"
+                className={strategyMode === "breakout-fvg" ? "primary-button" : ""}
+                style={strategyMode === "breakout-fvg" ? { padding: "8px 16px", height: "36px", fontSize: "12px" } : { padding: "8px 16px", height: "36px", fontSize: "12px", background: "#15231c", border: "1px solid #2a3932", color: "var(--muted)", borderRadius: "8px" }}
+                onClick={() => { setStrategyMode("breakout-fvg"); setStrategy(null); }}
+              >
+                15m Sweep + 5m FVG
+              </button>
+              <button
+                type="button"
+                className={strategyMode === "liquidity-grab" ? "primary-button" : ""}
+                style={strategyMode === "liquidity-grab" ? { padding: "8px 16px", height: "36px", fontSize: "12px" } : { padding: "8px 16px", height: "36px", fontSize: "12px", background: "#15231c", border: "1px solid #2a3932", color: "var(--muted)", borderRadius: "8px" }}
+                onClick={() => { setStrategyMode("liquidity-grab"); setStrategy(null); }}
+              >
+                Liquidity Grab (Daily)
+              </button>
+            </div>
             <label htmlFor="symbol">NSE equity symbol</label>
             <div className="search-row">
               <input id="symbol" value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === "Enter" && analyze()} />
@@ -132,20 +152,98 @@ export default function TradingDashboard() {
                 <div className={`signal ${strategy.matched ? "match" : "no-match"}`}>
                   {strategy.matched ? "PATTERN MATCHED" : "NO MATCH"}
                 </div>
-                <div className="editor-actions"><button onClick={() => openChart(selectedSymbol)}>Open chart</button><button onClick={() => setOrderDraft(selectedSymbol)}>Place order</button></div>
-                <div className="rsi-row"><span>Previous RSI ({strategy.rsiPeriod})</span><strong>{strategy.previousCandleRSI.toFixed(2)}</strong></div>
+                <div className="editor-actions">
+                  <button onClick={() => openChart(selectedSymbol)}>Open chart</button>
+                  <button onClick={() => setOrderDraft(selectedSymbol)}>Place order</button>
+                </div>
+                {strategyMode === "breakout-fvg" ? (
+                  <>
+                    <div className="rsi-row">
+                      <span>15m H14 High</span>
+                      <strong>₹{strategy.htf?.h14 ?? "—"}</strong>
+                    </div>
+                    <div className="rsi-row">
+                      <span>5m Cut Candle High</span>
+                      <strong>₹{strategy.ltf?.high ?? "—"}</strong>
+                    </div>
+                    {strategy.fvg?.exists && (
+                      <div className="rsi-row">
+                        <span>5m {strategy.fvg.type?.toUpperCase()} FVG</span>
+                        <strong style={{ color: "var(--green)" }}>₹{strategy.fvg.bottom} – ₹{strategy.fvg.top} (₹{strategy.fvg.gapSize})</strong>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="rsi-row">
+                    <span>Previous RSI ({strategy.rsiPeriod})</span>
+                    <strong>{strategy.previousCandleRSI?.toFixed(2)}</strong>
+                  </div>
+                )}
               </article>
 
               <article className="conditions-card">
-                <p className="eyebrow">CONDITION CHECK</p>
-                {Object.entries(strategy.conditions).map(([key, passed]) => (
-                  <div className="condition" key={key}>
-                    <span className={passed ? "check pass" : "check fail"}>{passed ? "✓" : "×"}</span>
-                    <span>{conditionLabels[key]}</span>
-                    <strong className={passed ? "pass-text" : "fail-text"}>{passed ? "PASS" : "FAIL"}</strong>
-                  </div>
-                ))}
-                <p className="fine-print">The present-day candle is provisional until the market closes.</p>
+                <p className="eyebrow">CONDITION CHECK ({strategyMode === "breakout-fvg" ? "15M SWEEP + 5M FVG" : "LIQUIDITY GRAB"})</p>
+                {strategyMode === "breakout-fvg" ? (
+                  <>
+                    <div className="condition">
+                      <span className={strategy.htf?.brokenHigh ? "check pass" : "check fail"}>
+                        {strategy.htf?.brokenHigh ? "✓" : "×"}
+                      </span>
+                      <span>15m Candle swept 14-period High (High ₹{strategy.htf?.high} &gt; H14 ₹{strategy.htf?.h14})</span>
+                      <strong className={strategy.htf?.brokenHigh ? "pass-text" : "fail-text"}>
+                        {strategy.htf?.brokenHigh ? "PASS" : "FAIL"}
+                      </strong>
+                    </div>
+
+                    <div className="condition">
+                      <span className={strategy.htf?.closedBelow ? "check pass" : "check fail"}>
+                        {strategy.htf?.closedBelow ? "✓" : "×"}
+                      </span>
+                      <span>15m Candle closed back below H14 (Close ₹{strategy.htf?.close} &lt; H14 ₹{strategy.htf?.h14})</span>
+                      <strong className={strategy.htf?.closedBelow ? "pass-text" : "fail-text"}>
+                        {strategy.htf?.closedBelow ? "PASS" : "FAIL"}
+                      </strong>
+                    </div>
+
+                    <div className="condition">
+                      <span className={Boolean(strategy.ltf) ? "check pass" : "check fail"}>
+                        {Boolean(strategy.ltf) ? "✓" : "×"}
+                      </span>
+                      <span>5m Cut Candle identified in 15m window {strategy.ltf ? `(${new Date(strategy.ltf.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})` : ""}</span>
+                      <strong className={Boolean(strategy.ltf) ? "pass-text" : "fail-text"}>
+                        {Boolean(strategy.ltf) ? "PASS" : "FAIL"}
+                      </strong>
+                    </div>
+
+                    <div className="condition">
+                      <span className={strategy.fvg?.exists ? "check pass" : "check fail"}>
+                        {strategy.fvg?.exists ? "✓" : "×"}
+                      </span>
+                      <span>
+                        Fair Value Gap exists with Cut Candle as 3rd Candle
+                        {strategy.fvg?.exists ? ` (${strategy.fvg.type.toUpperCase()}: ₹${strategy.fvg.bottom} – ₹${strategy.fvg.top})` : ""}
+                      </span>
+                      <strong className={strategy.fvg?.exists ? "pass-text" : "fail-text"}>
+                        {strategy.fvg?.exists ? "PASS" : "FAIL"}
+                      </strong>
+                    </div>
+
+                    <p className="fine-print">
+                      {strategy.message || "Multi-timeframe confirmation: 15m candle swept the high of last 14 candles, cut candle identified on 5m, and 3-candle FVG verified."}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    {strategy.conditions && Object.entries(strategy.conditions).map(([key, passed]) => (
+                      <div className="condition" key={key}>
+                        <span className={passed ? "check pass" : "check fail"}>{passed ? "✓" : "×"}</span>
+                        <span>{conditionLabels[key]}</span>
+                        <strong className={passed ? "pass-text" : "fail-text"}>{passed ? "PASS" : "FAIL"}</strong>
+                      </div>
+                    ))}
+                    <p className="fine-print">The present-day candle is provisional until the market closes.</p>
+                  </>
+                )}
               </article>
             </section>
           )}

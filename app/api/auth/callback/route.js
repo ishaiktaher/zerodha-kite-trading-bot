@@ -5,7 +5,7 @@ import { ensureUser } from "@/lib/db";
 export const runtime = "nodejs";
 
 export async function GET(request) {
-  const requestToken = request.nextUrl.searchParams.get("request_token");
+  const requestToken = request.nextUrl.searchParams.get("request_token")?.trim();
   const destination = new URL("/", request.url);
   if (!requestToken) {
     destination.searchParams.set("error", "Zerodha did not return a request token");
@@ -13,7 +13,8 @@ export async function GET(request) {
   }
 
   try {
-    const session = await createKite().generateSession(requestToken, process.env.KITE_API_SECRET);
+    const apiSecret = process.env.KITE_API_SECRET?.trim();
+    const session = await createKite().generateSession(requestToken, apiSecret);
     if (process.env.DATABASE_URL) await ensureUser(session.user_id);
     const token = createSession({
       accessToken: session.access_token,
@@ -29,7 +30,11 @@ export async function GET(request) {
     });
     return response;
   } catch (error) {
-    destination.searchParams.set("error", error.message || "Zerodha login failed");
+    console.error("Zerodha Kite auth callback error:", error);
+    const message = error.message?.includes("Token is invalid or has expired")
+      ? "Zerodha request token is invalid, expired, or already used. Please click 'Connect Zerodha' to start a fresh login."
+      : (error.message || "Zerodha login failed");
+    destination.searchParams.set("error", message);
     return NextResponse.redirect(destination);
   }
 }

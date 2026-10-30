@@ -18,3 +18,16 @@ test("saved filter integration matches only qualifying mocked symbols", () => {
   assert.deepEqual(matches, ["INFY"]);
 });
 
+test("indicatorValue evaluates highest_high and bullish_fvg accurately", () => {
+  const fvgCandles = [
+    { date: "2026-01-01", open: 10, high: 20, low: 10, close: 15 },
+    { date: "2026-01-02", open: 16, high: 40, low: 16, close: 38 },
+    { date: "2026-01-03", open: 38, high: 50, low: 25, close: 45 },
+  ];
+  const evalResult = evaluateConditions(fvgCandles, [
+    { id: "fvg-check", indicator: "bullish_fvg", operator: "eq", rightType: "value", value: 1, offset: 0 },
+    { id: "highest-check", indicator: "highest_high", period: 2, operator: "gte", rightType: "value", value: 40, offset: 0 },
+  ]);
+  assert.equal(evalResult.matched, true);
+});
+
